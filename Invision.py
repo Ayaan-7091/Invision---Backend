@@ -12,12 +12,20 @@ def detector(image_path):
     gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray,(5,5),1)
 
-    edges = cv2.Canny(blur,threshold1=30,threshold2=90)
+
+    thresh = cv2.adaptiveThreshold(
+        blur,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV,  # Invert to make shapes white on black
+        11,
+        2
+    )
 
     kernel = np.ones((2,2),np.uint8)
-    edges = cv2.morphologyEx(edges,cv2.MORPH_CLOSE,kernel)
+    thresh = cv2.morphologyEx(thresh,cv2.MORPH_CLOSE,kernel)
 
-    contours, _ = cv2.findContours(edges,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
 
     shapes = []
 
@@ -29,7 +37,7 @@ def detector(image_path):
         x, y, w, h = cv2.boundingRect(approx)
         
         aspect_ratio = w/float(h)
-        shape_type = "Undefined"
+        shape_type = None
         if len(approx) == 3:
             shape_type = "Triangle"
         elif len(approx) == 4:
@@ -44,10 +52,10 @@ def detector(image_path):
             if circularity > 0.8: 
              shape_type = "circle"
 
-        cv2.drawContours(image,[approx],0,(0,255,0),2)
-
-        cv2.rectangle(image, (x, y), (x + w, y + h), (255, 0, 0), 2)
-        cv2.putText(image,shape_type,(x,y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
+        if shape_type:
+            cv2.drawContours(image,[approx],0,(0,255,0),2)
+            cv2.rectangle(image, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            cv2.putText(image,shape_type,(x,y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0), 2)
 
     output_path = tempfile.NamedTemporaryFile(delete=False,suffix='.jpg').name
     cv2.imwrite(output_path,image)
@@ -68,4 +76,4 @@ def detect():
 
 if __name__ == '__main__':
     print("🚀 Starting Flask Server...")
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
